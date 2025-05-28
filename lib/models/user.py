@@ -13,3 +13,21 @@ class User(Base):
 
     def __repr__(self):
         return f"<User(id={self.id}, name='{self.name}', email='{self.email}')>"
+
+if __name__ == "__main__":
+    Base.metadata.create_all(engine)
+    print("User table created successfully!")
+
+    session = Session()
+
+    new_user = User(name="Alice", email="alice@example.com")
+    session.add(new_user)
+    session.commit()
+    print(f"Added user: {new_user}")
+
+    users = session.query(User).all()
+    print("\nAll users:")
+    for user in users:
+        print(user)
+
+    session.close()
