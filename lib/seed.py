@@ -45,3 +45,45 @@ def seed_database():
         {"activity": "Weightlifting (Lower)", "duration_minutes": 75},
         {"activity": "Meditation", "duration_minutes": 15},
     ]
+    workouts = [Workout(**data) for data in workouts_data]
+    session.add_all(workouts)
+    session.commit()
+    print(f"Added {len(workouts)} workouts.")
+
+    print("Creating user-workout associations...")
+    start_date = datetime.now() - timedelta(days=30)
+
+    for user in users:
+        num_workouts = random.randint(2, 6)
+        selected_workouts = random.sample(workouts, num_workouts)
+
+        for workout in selected_workouts:
+            days_offset = random.randint(0, 29)
+            hours_offset = random.randint(0, 23)
+            minutes_offset = random.randint(0, 59)
+            completion_date = start_date + timedelta(days=days_offset, hours=hours_offset, minutes=minutes_offset)
+
+            notes = None
+            if random.random() < 0.3:
+                notes_options = [
+                    "Felt great!",
+                    "A bit tired today.",
+                    "Pushed hard!",
+                ]
+                notes = random.choice(notes_options)
+
+            association = UserWorkout(
+                user=user,
+                workout=workout,
+                completion_date=completion_date,
+                notes=notes
+            )
+            session.add(association)
+    session.commit()
+    print("User-workout associations created.")
+
+    session.close()
+    print("Database seeding complete!")
+
+if __name__ == "__main__":
+    seed_database()
