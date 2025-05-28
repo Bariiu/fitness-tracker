@@ -159,3 +159,100 @@ def delete_workout(workout_id):
         return False
     finally:
         session.close()
+
+def log_user_workout(user_id, workout_id, completion_date=None, notes=None):
+    """
+    Logs a specific workout for a user by creating a UserWorkout association.
+    'completion_date' defaults to now if not provided.
+    """
+    session = Session()
+    try:
+        user = session.query(User).filter_by(id=user_id).first()
+        workout = session.query(Workout).filter_by(id=workout_id).first()
+
+        if not user:
+            print(f"User with ID {user_id} not found.")
+            return None
+        if not workout:
+            print(f"Workout with ID {workout_id} not found.")
+            return None
+
+        date_to_use = completion_date if completion_date else datetime.now()
+
+        existing_log = session.query(UserWorkout).filter(
+            UserWorkout.user_id == user_id,
+            UserWorkout.workout_id == workout_id,
+            UserWorkout.completion_date >= date_to_use.replace(hour=0, minute=0, second=0, microsecond=0),
+            UserWorkout.completion_date < date_to_use.replace(hour=23, minute=59, second=59, microsecond=999999)
+        ).first()
+
+        if existing_log:
+            print(f"User {user.name} already logged '{workout.activity}' on {date_to_use.strftime('%Y-%m-%d')}.")
+            return existing_log
+
+        new_user_workout = UserWorkout(
+            user=user,
+            workout=workout,
+            completion_date=date_to_use,
+            notes=notes
+        )
+        session.add(new_user_workout)
+        session.commit()
+        print(f"Logged workout: User '{user.name}' did '{workout.activity}' on {date_to_use.strftime('%Y-%m-%d')}.")
+        return new_user_workout
+    except Exception as e:
+        session.rollback()
+        print(f"Error logging user workout: {e}")
+        return None
+    finally:
+        session.close()
+
+def get_user_workouts(user_id):
+    """Retrieves all workout logs for a specific user."""
+    session = Session()
+    try:
+        user = session.query(User).filter_by(id=user_id).first()
+        if user:
+            return user.user_workouts
+        return []
+    finally:
+        session.close()
+
+def get_workout_participants(workout_id):
+    """Retrieves all users who participated in a specific workout type."""
+    session = Session()
+    try:
+        workout = session.query(Workout).filter_by(id=workout_id).first()
+        if workout:
+            return workout.users
+        return []
+    finally:
+        session.close()
+
+def get_all_workout_logs():
+    """Retrieves all user-workout association logs."""
+    session = Session()
+    try:
+        logs = session.query(UserWorkout).order_by(UserWorkout.completion_date.desc()).all()
+        return logs
+    finally:
+        session.close()
+
+def delete_user_workout_log(log_id):
+    """Deletes a specific user-workout log entry by its ID."""
+    session = Session()
+    try:
+        log_entry = session.query(UserWorkout).filter_by(id=log_id).first()
+        if log_entry:
+            session.delete(log_entry)
+            session.commit()
+            print(f"Workout log (ID: {log_id}) deleted.")
+            return True
+        print(f"Workout log with ID {log_id} not found.")
+        return False
+    except Exception as e:
+        session.rollback()
+        print(f"Error deleting workout log: {e}")
+        return False
+    finally:
+        session.close()
