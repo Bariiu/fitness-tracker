@@ -34,6 +34,11 @@ if __name__ == "__main__":
         existing_user = dummy_user
         print(f"Created dummy user: {existing_user}")
 
+    new_workout = Workout(activity="Running", duration_minutes=30, user=existing_user)
+    session.add(new_workout)
+    session.commit()
+    print(f"Added workout: {new_workout}")
+
     workouts = session.query(Workout).all()
     print("\nAll workouts:")
     for workout in workouts:
