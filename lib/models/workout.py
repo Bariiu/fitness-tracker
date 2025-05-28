@@ -5,6 +5,22 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from .__init__ import Base, Session, engine
 from .user_workout import UserWorkout
 
+class Workout(Base):
+    __tablename__ = 'workouts'
+
+    id = Column(Integer, primary_key=True)
+    activity = Column(String, nullable=False)
+    duration_minutes = Column(Integer, nullable=False)
+    timestamp = Column(DateTime, default=func.now())
+
+    user_workouts = relationship('UserWorkout', back_populates='workout', cascade='all, delete-orphan')
+
+    users = association_proxy('user_workouts', 'user')
+
+    def __repr__(self):
+        return (f"<Workout(id={self.id}, activity='{self.activity}', "
+                f"duration_minutes={self.duration_minutes})>")
+
 if __name__ == "__main__":
     from .user import User
 
