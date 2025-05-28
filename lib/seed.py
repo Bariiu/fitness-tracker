@@ -34,3 +34,14 @@ def seed_database():
     session.add_all(users)
     session.commit()
     print(f"Added {len(users)} users.")
+
+    workouts_data = [
+        {"activity": "Morning Run", "duration_minutes": 30},
+        {"activity": "Weightlifting (Upper)", "duration_minutes": 60},
+        {"activity": "Yoga Flow", "duration_minutes": 45},
+        {"activity": "Cycling (Outdoor)", "duration_minutes": 90},
+        {"activity": "HIIT Training", "duration_minutes": 25},
+        {"activity": "Swimming Laps", "duration_minutes": 40},
+        {"activity": "Weightlifting (Lower)", "duration_minutes": 75},
+        {"activity": "Meditation", "duration_minutes": 15},
+    ]
