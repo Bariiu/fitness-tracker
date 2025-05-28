@@ -19,15 +19,8 @@ if __name__ == "__main__":
     print("User table created successfully!")
 
     session = Session()
-
-    new_user = User(name="Alice", email="alice@example.com")
+    new_user = User(name="Alice", email="alice@gmail.com")
     session.add(new_user)
     session.commit()
     print(f"Added user: {new_user}")
-
-    users = session.query(User).all()
-    print("\nAll users:")
-    for user in users:
-        print(user)
-
     session.close()
