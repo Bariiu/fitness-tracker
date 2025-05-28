@@ -256,3 +256,34 @@ def delete_user_workout_log(log_id):
         return False
     finally:
         session.close()
+
+if __name__ == "__main__":
+    print("--- Testing Helper Functions ---")
+    session = Session()
+
+    all_users = get_all_users()
+    all_workouts = get_all_workouts()
+
+    if not all_users or not all_workouts:
+        print("Database is empty. Please run 'python -m lib.seed' first.")
+    else:
+        print(f"\nFound {len(all_users)} users and {len(all_workouts)} workouts from seed.")
+
+    new_user_example = create_user("Test User", "test@example.com")
+    new_workout_example = create_workout("Meditation", 20)
+
+    if all_users and all_workouts:
+        log_user_workout(all_users[0].id, all_workouts[0].id, notes="Feeling good!")
+        log_user_workout(all_users[1].id, all_workouts[0].id, notes="Group session!")
+
+    if all_users:
+        user_workouts_list = get_user_workouts(all_users[0].id)
+        print(f"\nWorkouts for {all_users[0].name}:")
+        for uw_log in user_workouts_list:
+            print(f"- {uw_log.workout.activity} on {uw_log.completion_date.strftime('%Y-%m-%d %H:%M')}, Notes: {uw_log.notes or 'N/A'}")
+
+    if new_user_example:
+        delete_user(new_user_example.id)
+
+    session.close()
+    print("\n--- Helper function tests complete! ---")
