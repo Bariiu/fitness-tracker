@@ -87,3 +87,75 @@ def delete_user(user_id):
         return False
     finally:
         session.close()
+
+def create_workout(activity, duration_minutes):
+    """Creates and adds a new workout type to the database."""
+    session = Session()
+    try:
+        new_workout = Workout(activity=activity, duration_minutes=duration_minutes)
+        session.add(new_workout)
+        session.commit()
+        print(f"Workout created: {new_workout}")
+        return new_workout
+    except Exception as e:
+        session.rollback()
+        print(f"Error creating workout: {e}")
+        return None
+    finally:
+        session.close()
+
+def get_all_workouts():
+    """Retrieves all distinct workout types from the database."""
+    session = Session()
+    try:
+        workouts = session.query(Workout).all()
+        return workouts
+    finally:
+        session.close()
+
+def find_workout_by_id(workout_id):
+    """Finds a workout type by its ID."""
+    session = Session()
+    try:
+        workout = session.query(Workout).filter_by(id=workout_id).first()
+        return workout
+    finally:
+        session.close()
+
+def update_workout_duration(workout_id, new_duration):
+    """Updates a workout type's default duration by ID."""
+    session = Session()
+    try:
+        workout = session.query(Workout).filter_by(id=workout_id).first()
+        if workout:
+            workout.duration_minutes = new_duration
+            session.commit()
+            print(f"Workout '{workout.activity}' duration updated to {new_duration} minutes.")
+            return workout
+        print(f"Workout with ID {workout_id} not found.")
+        return None
+    except Exception as e:
+        session.rollback()
+        print(f"Error updating workout duration: {e}")
+        return None
+    finally:
+        session.close()
+
+def delete_workout(workout_id):
+    """Deletes a workout type and all its associations from the database."""
+    session = Session()
+    try:
+        workout = session.query(Workout).filter_by(id=workout_id).first()
+        if workout:
+            session.delete(workout)
+            session.commit()
+            print(f"Workout '{workout.activity}' (ID: {workout_id}) and its associations deleted.")
+            return True
+        print(f"Workout with ID {workout_id} not found.")
+        return False
+    except Exception as e:
+        session.rollback()
+        print(f"Error deleting workout: {e}")
+        return False
+    finally:
+        session.close()
