@@ -11,15 +11,13 @@ from lib.helpers import (
 )
 from lib.seed import seed_database
 from datetime import datetime
-from sqlalchemy.orm import joinedload # Ensure this is imported!
+from sqlalchemy.orm import joinedload
 
 def debug_cli():
     print("--- Re-seeding database for debug session ---")
     seed_database()
     print("--- Database re-seeded ---")
 
-    # It's good practice to get a fresh session here if you're doing
-    # ad-hoc queries, even though helpers handle their own sessions.
     session = Session()
 
     print("\n--- Debugging Session Started ---")
@@ -46,11 +44,8 @@ def debug_cli():
         print("Failed to create debug user.")
 
     print("\n--- Logging a workout via helper (Alice - Morning Run) ---")
-    # Call the helper, which handles its own session
     logged_workout_result = log_user_workout(1, 1, datetime.now(), "Debugging a workout log!")
     if logged_workout_result:
-        # Crucially, re-fetch the object with its relationships eager-loaded
-        # in a NEW session so its __repr__ can safely access them for printing.
         fresh_session_for_repr = Session()
         try:
             re_fetched_log_for_print = fresh_session_for_repr.query(UserWorkout).options(
@@ -89,7 +84,6 @@ def debug_cli():
     if first_user:
         print(f"First user by direct query: {first_user.name}")
 
-    # Close the session opened at the beginning of debug_cli
     session.close()
     print("\n--- Debugging Session Finished ---")
 
