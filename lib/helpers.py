@@ -1,4 +1,4 @@
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, joinedload
 from lib.models.__init__ import engine, Session
 from lib.models.user import User
 from lib.models.workout import Workout
@@ -6,9 +6,7 @@ from lib.models.user_workout import UserWorkout
 from datetime import datetime, timedelta
 import random
 
-
 def create_user(name, email):
-    """Creates and adds a new user to the database."""
     session = Session()
     try:
         new_user = User(name=name, email=email)
@@ -24,7 +22,6 @@ def create_user(name, email):
         session.close()
 
 def get_all_users():
-    """Retrieves all users from the database."""
     session = Session()
     try:
         users = session.query(User).all()
@@ -33,7 +30,6 @@ def get_all_users():
         session.close()
 
 def find_user_by_id(user_id):
-    """Finds a user by their ID."""
     session = Session()
     try:
         user = session.query(User).filter_by(id=user_id).first()
@@ -42,7 +38,6 @@ def find_user_by_id(user_id):
         session.close()
 
 def find_user_by_name(name):
-    """Finds users by name (case-insensitive, partial match)."""
     session = Session()
     try:
         users = session.query(User).filter(User.name.ilike(f'%{name}%')).all()
@@ -51,7 +46,6 @@ def find_user_by_name(name):
         session.close()
 
 def update_user_email(user_id, new_email):
-    """Updates a user's email by ID."""
     session = Session()
     try:
         user = session.query(User).filter_by(id=user_id).first()
@@ -70,7 +64,6 @@ def update_user_email(user_id, new_email):
         session.close()
 
 def delete_user(user_id):
-    """Deletes a user and all their associated workouts from the database."""
     session = Session()
     try:
         user = session.query(User).filter_by(id=user_id).first()
@@ -89,7 +82,6 @@ def delete_user(user_id):
         session.close()
 
 def create_workout(activity, duration_minutes):
-    """Creates and adds a new workout type to the database."""
     session = Session()
     try:
         new_workout = Workout(activity=activity, duration_minutes=duration_minutes)
@@ -105,7 +97,6 @@ def create_workout(activity, duration_minutes):
         session.close()
 
 def get_all_workouts():
-    """Retrieves all distinct workout types from the database."""
     session = Session()
     try:
         workouts = session.query(Workout).all()
@@ -114,7 +105,6 @@ def get_all_workouts():
         session.close()
 
 def find_workout_by_id(workout_id):
-    """Finds a workout type by its ID."""
     session = Session()
     try:
         workout = session.query(Workout).filter_by(id=workout_id).first()
@@ -123,7 +113,6 @@ def find_workout_by_id(workout_id):
         session.close()
 
 def update_workout_duration(workout_id, new_duration):
-    """Updates a workout type's default duration by ID."""
     session = Session()
     try:
         workout = session.query(Workout).filter_by(id=workout_id).first()
@@ -142,7 +131,6 @@ def update_workout_duration(workout_id, new_duration):
         session.close()
 
 def delete_workout(workout_id):
-    """Deletes a workout type and all its associations from the database."""
     session = Session()
     try:
         workout = session.query(Workout).filter_by(id=workout_id).first()
@@ -161,10 +149,6 @@ def delete_workout(workout_id):
         session.close()
 
 def log_user_workout(user_id, workout_id, completion_date=None, notes=None):
-    """
-    Logs a specific workout for a user by creating a UserWorkout association.
-    'completion_date' defaults to now if not provided.
-    """
     session = Session()
     try:
         user = session.query(User).filter_by(id=user_id).first()
@@ -208,21 +192,25 @@ def log_user_workout(user_id, workout_id, completion_date=None, notes=None):
         session.close()
 
 def get_user_workouts(user_id):
-    """Retrieves all workout logs for a specific user."""
     session = Session()
     try:
         user = session.query(User).filter_by(id=user_id).first()
         if user:
-            return user.user_workouts
+            logs = session.query(UserWorkout).options(
+                joinedload(UserWorkout.workout),
+                joinedload(UserWorkout.user)
+            ).filter(UserWorkout.user_id == user_id).all()
+            return logs
         return []
     finally:
         session.close()
 
 def get_workout_participants(workout_id):
-    """Retrieves all users who participated in a specific workout type."""
     session = Session()
     try:
-        workout = session.query(Workout).filter_by(id=workout_id).first()
+        workout = session.query(Workout).options(
+            joinedload(Workout.user_workouts).joinedload(UserWorkout.user)
+        ).filter_by(id=workout_id).first()
         if workout:
             return workout.users
         return []
@@ -230,16 +218,17 @@ def get_workout_participants(workout_id):
         session.close()
 
 def get_all_workout_logs():
-    """Retrieves all user-workout association logs."""
     session = Session()
     try:
-        logs = session.query(UserWorkout).order_by(UserWorkout.completion_date.desc()).all()
+        logs = session.query(UserWorkout).options(
+            joinedload(UserWorkout.user),
+            joinedload(UserWorkout.workout)
+        ).order_by(UserWorkout.completion_date.desc()).all()
         return logs
     finally:
         session.close()
 
 def delete_user_workout_log(log_id):
-    """Deletes a specific user-workout log entry by its ID."""
     session = Session()
     try:
         log_entry = session.query(UserWorkout).filter_by(id=log_id).first()
@@ -258,32 +247,142 @@ def delete_user_workout_log(log_id):
         session.close()
 
 if __name__ == "__main__":
-    print("--- Testing Helper Functions ---")
-    session = Session()
+    from lib.seed import seed_database
+    seed_database()
+    print("--- Database re-seeded for testing ---")
 
-    all_users = get_all_users()
-    all_workouts = get_all_workouts()
+    print("\n--- Test sequence begins ---")
 
-    if not all_users or not all_workouts:
-        print("Database is empty. Please run 'python -m lib.seed' first.")
+    initial_users = get_all_users()
+    initial_workouts = get_all_workouts()
+
+    if not initial_users or not initial_workouts:
+        print("Database is empty even after seeding. Exiting helper test.")
+        exit()
     else:
-        print(f"\nFound {len(all_users)} users and {len(all_workouts)} workouts from seed.")
+        print(f"\nFound {len(initial_users)} users and {len(initial_workouts)} workouts from seed.")
 
-    new_user_example = create_user("Test User", "test@example.com")
-    new_workout_example = create_workout("Meditation", 20)
+    print("\n--- Test: Creating User ---")
+    unique_email_create = f"test.user.{datetime.now().strftime('%Y%m%d%H%M%S%f')}@gmail.com"
+    new_user_created = create_user("Test User", unique_email_create)
+    if new_user_created:
+        print(f"New user created: {new_user_created}")
 
-    if all_users and all_workouts:
-        log_user_workout(all_users[0].id, all_workouts[0].id, notes="Feeling good!")
-        log_user_workout(all_users[1].id, all_workouts[0].id, notes="Group session!")
+    print("\n--- Test: Get All Users (fresh fetch) ---")
+    users_after_create = get_all_users()
+    for user in users_after_create:
+        print(user)
 
-    if all_users:
-        user_workouts_list = get_user_workouts(all_users[0].id)
-        print(f"\nWorkouts for {all_users[0].name}:")
-        for uw_log in user_workouts_list:
-            print(f"- {uw_log.workout.activity} on {uw_log.completion_date.strftime('%Y-%m-%d %H:%M')}, Notes: {uw_log.notes or 'N/A'}")
+    if users_after_create:
+        first_user_id = users_after_create[0].id
+        found_user = find_user_by_id(first_user_id)
+        print(f"\n--- Test: Find User by ID ({first_user_id}) ---")
+        print(f"Found: {found_user}")
 
-    if new_user_example:
-        delete_user(new_user_example.id)
+    print("\n--- Test: Find User by Name ('Alice') ---")
+    alice_users_found = find_user_by_name("Alice")
+    print(f"Found: {alice_users_found}")
 
-    session.close()
+    if alice_users_found:
+        print("\n--- Test: Update User Email ---")
+        updated_unique_email = f"alice.updated.{datetime.now().strftime('%Y%m%d%H%M%S%f')}@gmail.com"
+        updated_alice = update_user_email(alice_users_found[0].id, updated_unique_email)
+        print(f"Updated Alice: {updated_alice}")
+
+    print("\n--- Test: Creating Workout ---")
+    new_workout_created = create_workout("Evening Walk", 30)
+    if new_workout_created:
+        print(f"New workout created: {new_workout_created}")
+
+    print("\n--- Test: Get All Workouts (fresh fetch) ---")
+    workouts_after_create = get_all_workouts()
+    for workout in workouts_after_create:
+        print(workout)
+
+    print("\n--- Test: Logging User Workout ---")
+    user_to_log = find_user_by_id(initial_users[0].id)
+    workout_to_log_1 = find_workout_by_id(initial_workouts[0].id)
+    workout_to_log_2 = find_workout_by_id(initial_workouts[1].id)
+
+    if user_to_log and workout_to_log_1 and workout_to_log_2:
+        log_user_workout(user_to_log.id, workout_to_log_1.id, notes="Great energy today!")
+        log_user_workout(user_to_log.id, workout_to_log_2.id, completion_date=datetime.now() - timedelta(days=1))
+        log_user_workout(user_to_log.id, workout_to_log_1.id, notes="Another attempt, shouldn't add new log.")
+    else:
+        print("Not enough users/workouts to test logging after re-fetching.")
+
+    user_for_logs_display = find_user_by_id(user_to_log.id)
+    print(f"\n--- Test: Get Workouts for {user_for_logs_display.name} (ID: {user_for_logs_display.id}) ---")
+    if user_for_logs_display:
+        users_workouts_list = get_user_workouts(user_for_logs_display.id)
+        if users_workouts_list:
+            for uw_log in users_workouts_list:
+                print(f"- {uw_log.workout.activity} on {uw_log.completion_date.strftime('%Y-%m-%d %H:%M')}, Notes: {uw_log.notes or 'N/A'}")
+        else:
+            print(f"No workout logs found for {user_for_logs_display.name}.")
+    else:
+        print(f"User with ID {user_to_log.id} not found for log display.")
+
+    workout_for_participants_display = find_workout_by_id(initial_workouts[0].id)
+    if workout_for_participants_display:
+        print(f"\n--- Test: Get Participants for '{workout_for_participants_display.activity}' (ID: {workout_for_participants_display.id}) ---")
+        participants = get_workout_participants(workout_for_participants_display.id)
+        if participants:
+            print(f"Participants: {[p.name for p in participants]}")
+        else:
+            print("No participants for this workout.")
+    else:
+        print(f"Workout with ID {initial_workouts[0].id} not found for participants display.")
+
+    print("\n--- Test: Get All Workout Logs ---")
+    all_logs_display = get_all_workout_logs()
+    for log_entry in all_logs_display[:5]:
+        print(f"Log ID: {log_entry.id}, User: {log_entry.user.name}, Workout: {log_entry.workout.activity}, Date: {log_entry.completion_date.strftime('%Y-%m-%d')}")
+
+    users_to_delete_from = get_all_users()
+    if users_to_delete_from and len(users_to_delete_from) > 1:
+        user_to_delete_target = None
+        for u in users_to_delete_from:
+            if u.name not in ["Alice", "Test User"]:
+                 user_to_delete_target = u
+                 break
+        if user_to_delete_target:
+            print(f"\n--- Test: Deleting User {user_to_delete_target.name} (ID: {user_to_delete_target.id}) ---")
+            delete_user(user_to_delete_target.id)
+            print("\nUsers remaining:")
+            for user in get_all_users():
+                print(user)
+        else:
+            print("\nSkipping delete user test: Not enough diverse users to safely delete without affecting other tests.")
+
+    if new_workout_created:
+        print(f"\n--- Test: Deleting Workout '{new_workout_created.activity}' (ID: {new_workout_created.id}) ---")
+        delete_workout(new_workout_created.id)
+        print("\nWorkouts remaining:")
+        for workout in get_all_workouts():
+            print(workout)
+
+    all_logs_after_deletions = get_all_workout_logs()
+    if all_logs_after_deletions:
+        log_to_delete_id = all_logs_after_deletions[0].id
+        print(f"\n--- Test: Deleting specific workout log ID: {log_to_delete_id} ---")
+        delete_user_workout_log(log_to_delete_id)
+
+        deleted_log_check = next((log for log in get_all_workout_logs() if log.id == log_to_delete_id), None)
+        if not deleted_log_check:
+            print(f"Log {log_to_delete_id} successfully deleted.")
+    else:
+        print("\nNo logs to delete for specific log test.")
+
+    print("\n--- Final Data State ---")
+    print("\nUsers:")
+    for user in get_all_users():
+        print(user)
+    print("\nWorkouts:")
+    for workout in get_all_workouts():
+        print(workout)
+    print("\nWorkout Logs:")
+    for log_entry in get_all_workout_logs():
+        print(log_entry)
+
     print("\n--- Helper function tests complete! ---")
