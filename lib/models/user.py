@@ -49,6 +49,6 @@ if __name__ == "__main__":
 
     print("\nWorkouts and participants:")
     for workout in session.query(Workout).all():
-        print(f"{workout.activity}: {[u.name for u in workout.users]}") # using the 'users' proxy on Workout
+        print(f"{workout.activity}: {[u.name for u in workout.users]}")
 
     session.close()
